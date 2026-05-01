@@ -1,0 +1,37 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Stores user routing and progress data.",
+      "type": "object",
+      "properties": {
+        "clients": {
+          "type": "array",
+          "description": "List of PDVs"
+        },
+        "orders": {
+          "type": "array",
+          "description": "List of orders"
+        },
+        "quiebresText": {
+          "type": "string"
+        },
+        "vendorId": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "number",
+          "description": "Timestamp of last update"
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
+      "description": "Current user progress."
+    }
+  }
+}
