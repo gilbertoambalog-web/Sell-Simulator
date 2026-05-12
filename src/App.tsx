@@ -233,7 +233,7 @@ export default function App() {
     setOrders([]);
     setQuiebresText('');
     setVendorId('---');
-    saveToFirestore([], [], '', undefined, undefined, '---');
+    saveToFirestore([], [], '', undefined, undefined, undefined, '---');
     setShowResetConfirm(false);
   };
 
@@ -241,7 +241,7 @@ export default function App() {
     setClients(newClients);
     if (extractedVendorId && !extractedVendorId.includes('@')) {
       setVendorId(extractedVendorId);
-      saveToFirestore(newClients, orders, quiebresText, undefined, undefined, extractedVendorId);
+      saveToFirestore(newClients, orders, quiebresText, undefined, undefined, undefined, extractedVendorId);
     } else {
       saveToFirestore(newClients, orders, quiebresText);
     }
@@ -314,7 +314,7 @@ export default function App() {
         day={clients[0]?.day}
         onUpdateVendorId={(id) => {
           setVendorId(id);
-          saveToFirestore(undefined, undefined, undefined, undefined, undefined, id);
+          saveToFirestore(undefined, undefined, undefined, undefined, undefined, undefined, id);
         }}
         onLogout={() => setShowLogoutConfirm(true)} 
         onOpenAI={() => setShowAI(true)} 

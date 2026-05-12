@@ -65,10 +65,10 @@ export default function ArticlesModal({ onClose, customStock, onStockUpdated }: 
     setStockText('');
   };
 
-  const filteredCategories = useMemo(() => {
-    if (!searchTerm) return CATEGORIES;
+  const filteredCategories = useMemo((): Record<string, { id: string; name: string; price: number; }[]> => {
+    if (!searchTerm) return CATEGORIES as Record<string, { id: string; name: string; price: number; }[]>;
     const term = searchTerm.toLowerCase();
-    const result: Record<string, typeof CATEGORIES[string]> = {};
+    const result: Record<string, { id: string; name: string; price: number; }[]> = {};
     
     Object.entries(CATEGORIES).forEach(([catName, items]) => {
       const filtered = items.filter(item => item.name.toLowerCase().includes(term));
@@ -168,7 +168,7 @@ export default function ArticlesModal({ onClose, customStock, onStockUpdated }: 
                   <h3 className="text-sm font-black text-slate-800 tracking-tight">{catName}</h3>
                 </div>
                 <div className="flex-1 space-y-4">
-                  {items.map((item) => {
+                  {(items as any[]).map((item) => {
                     const stk = customStock[item.id];
                     const hasStock = stk !== undefined;
                     return (
