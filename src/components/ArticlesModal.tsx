@@ -1,62 +1,21 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { X, Box } from 'lucide-react';
+import { CATEGORIES } from '../constants';
 
 interface ArticlesModalProps {
   onClose: () => void;
 }
 
-const categories = [
-  {
-    icon: '🍷',
-    name: 'VINOS DEL AÑO',
-    items: [
-      'San Telmo', 'Suter', 'Alaris', 'F Las Moras', 'Fair For Life',
-      'El Bautismo', 'Cazador', 'Los Árboles', 'Alma Mora', 'Dadá',
-      'Elementos', 'Origen', 'Alma Mora Rva', 'Colección', 'Don David',
-      'Fond de Cave', 'Trapiche Reserva'
-    ]
-  },
-  {
-    icon: '🥂',
-    name: 'PREMIUM',
-    items: [
-      'Blend Extremos', 'Don David Rva', 'FDC Rva', 'Intocables',
-      'Puro Impuro', 'Puro Rose', 'Paz', 'NC Reserva'
-    ]
-  },
-  {
-    icon: '🍾',
-    name: 'ESPUMANTES',
-    items: [
-      'San Telmo', 'Dadá', 'Dadá Sidra', 'Navarro', 'Navarro lata'
-    ]
-  },
-  {
-    icon: '🍹',
-    name: 'RTD',
-    items: [
-      'Frizzé Bot', 'Frizzé Lata', 'Smirnoff ICE', 'Smirnoff BC', 'Gordon’s Tonic'
-    ]
-  },
-  {
-    icon: '🍺',
-    name: 'ANTARES',
-    items: [
-      'Lager', 'IPA S/A', 'Especial'
-    ]
-  },
-  {
-    icon: '🍶',
-    name: 'SPIRITS',
-    items: [
-      'Gordon’s', 'Gordon’s Pink', 'Smirnoff original', 'Smirnoff Flavors',
-      'Tanqueray', 'Tanqueray saborizado', 'Red Label 750', 'Red Label 1L',
-      'Black Label 750', 'Black Label 1L', 'Double Black', 'White Horse',
-      'Baileys', 'Baileys Caramel'
-    ]
-  }
-];
+const categoryIcons: Record<string, string> = {
+  "VINOS DEL AÑO": "🍷",
+  "VINOS DE GUARDA": "🥂",
+  "PREMIUM": "🥂",
+  "ESPUMANTES": "🍾",
+  "RTD": "🍹",
+  "ANTARES": "🍺",
+  "SPIRITS": "🍶"
+};
 
 export default function ArticlesModal({ onClose }: ArticlesModalProps) {
   return (
@@ -97,16 +56,16 @@ export default function ArticlesModal({ onClose }: ArticlesModalProps) {
 
         <div className="flex-1 overflow-y-auto p-6 md:p-8 bg-slate-50/50">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((category) => (
-              <div key={category.name} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col h-full">
+            {Object.entries(CATEGORIES).map(([catName, items]) => (
+              <div key={catName} className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col h-full">
                 <div className="flex items-center gap-2 mb-4 pb-4 border-b border-slate-100">
-                  <span className="text-xl">{category.icon}</span>
-                  <h3 className="text-sm font-black text-slate-800 tracking-tight">{category.name}</h3>
+                  <span className="text-xl">{categoryIcons[catName] || '📦'}</span>
+                  <h3 className="text-sm font-black text-slate-800 tracking-tight">{catName}</h3>
                 </div>
                 <div className="flex-1 space-y-4">
-                  {category.items.map((item, idx) => (
-                    <div key={idx} className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-700">{item}</span>
+                  {items.map((item) => (
+                    <div key={item.id} className="flex flex-col">
+                      <span className="text-sm font-bold text-slate-700">{item.name}</span>
                       <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 mt-0.5">STOCK: --</span>
                     </div>
                   ))}
@@ -119,3 +78,4 @@ export default function ArticlesModal({ onClose }: ArticlesModalProps) {
     </div>
   );
 }
+
