@@ -88,6 +88,7 @@ export default function App() {
   const [quiebresText, setQuiebresText] = useState('');
   const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
   const [customPromos, setCustomPromos] = useState<PromoRule[]>([]);
+  const [customStock, setCustomStock] = useState<Record<string, number>>({});
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -162,6 +163,7 @@ export default function App() {
         setQuiebresText(data.quiebresText || '');
         setCustomPrices(data.customPrices || {});
         setCustomPromos(Array.isArray(data.customPromos) ? data.customPromos : []);
+        setCustomStock(data.customStock || {});
         if (data.vendorId && data.vendorId !== vendorId) {
           if (!data.vendorId.includes('@')) {
             setVendorId(data.vendorId);
@@ -177,12 +179,12 @@ export default function App() {
     return () => unsubscribe();
   }, [firebaseUser]);
 
-  const stateRef = useRef({ clients, orders, quiebresText, customPrices, customPromos, vendorId });
+  const stateRef = useRef({ clients, orders, quiebresText, customPrices, customPromos, customStock, vendorId });
   useEffect(() => {
-    stateRef.current = { clients, orders, quiebresText, customPrices, customPromos, vendorId };
-  }, [clients, orders, quiebresText, customPrices, customPromos, vendorId]);
+    stateRef.current = { clients, orders, quiebresText, customPrices, customPromos, customStock, vendorId };
+  }, [clients, orders, quiebresText, customPrices, customPromos, customStock, vendorId]);
 
-  const saveToFirestore = async (overrideClients?: PDV[], overrideOrders?: Order[], overrideQuiebres?: string, overridePrices?: Record<string, number>, overridePromos?: PromoRule[], overrideVendorId?: string) => {
+  const saveToFirestore = async (overrideClients?: PDV[], overrideOrders?: Order[], overrideQuiebres?: string, overridePrices?: Record<string, number>, overridePromos?: PromoRule[], overrideStock?: Record<string, number>, overrideVendorId?: string) => {
     if (!firebaseUser) return;
     const path = `users/${firebaseUser.uid}`;
     const curr = stateRef.current;
@@ -193,6 +195,7 @@ export default function App() {
         quiebresText: overrideQuiebres !== undefined ? overrideQuiebres : curr.quiebresText,
         customPrices: overridePrices !== undefined ? overridePrices : curr.customPrices,
         customPromos: overridePromos !== undefined ? overridePromos : curr.customPromos,
+        customStock: overrideStock !== undefined ? overrideStock : curr.customStock,
         vendorId: overrideVendorId !== undefined ? overrideVendorId : (curr.vendorId || ''),
         updatedAt: Date.now()
       });
@@ -687,7 +690,14 @@ export default function App() {
           />
         )}
         {showArticles && (
-          <ArticlesModal onClose={() => setShowArticles(false)} />
+          <ArticlesModal 
+            onClose={() => setShowArticles(false)} 
+            customStock={customStock}
+            onStockUpdated={(newStock) => {
+              setCustomStock(newStock);
+              saveToFirestore(clients, orders, quiebresText, customPrices, customPromos, newStock);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
