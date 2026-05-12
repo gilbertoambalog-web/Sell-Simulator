@@ -5,7 +5,7 @@ import { PDV, PDVStatus } from '../types';
 
 interface RouteImportModalProps {
   onClose: () => void;
-  onImport: (clients: PDV[]) => void;
+  onImport: (clients: PDV[], vendorId?: string) => void;
 }
 
 export default function RouteImportModal({ onClose, onImport }: RouteImportModalProps) {
@@ -21,6 +21,9 @@ export default function RouteImportModal({ onClose, onImport }: RouteImportModal
 
       // Split by lines
       const lines = data.trim().split('\n');
+      
+      let detectedVendorId = '';
+
       const parsedClients: PDV[] = lines.map((line, index) => {
         // Split by tabs to perfectly match Excel copy-paste
         const parts = line.split('\t').map(p => p.trim());
@@ -31,6 +34,10 @@ export default function RouteImportModal({ onClose, onImport }: RouteImportModal
 
         if (extractedParts.length < 5) {
           throw new Error(`Línea ${index + 1} tiene un formato inválido. Necesita estar separada por columnas (tabulaciones o múltiples espacios).`);
+        }
+
+        if (index === 0 && extractedParts[0]) {
+          detectedVendorId = extractedParts[0];
         }
 
         const billing = extractedParts[5] || '$ 0';
@@ -61,7 +68,7 @@ export default function RouteImportModal({ onClose, onImport }: RouteImportModal
       });
 
       if (parsedClients.length > 0) {
-        onImport(parsedClients);
+        onImport(parsedClients, detectedVendorId);
       }
     } catch (err: any) {
       setError(err.message || 'Error al procesar los datos. Verifica el formato.');

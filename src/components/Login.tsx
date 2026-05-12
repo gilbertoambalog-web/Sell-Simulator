@@ -36,7 +36,7 @@ export default function Login({ onLogin }: LoginProps) {
         className="w-full max-w-md p-6 relative"
       >
         <div className="bg-white rounded-[3rem] p-12 shadow-[0_32px_64px_-16px_rgba(0,0,0,0.3)] border border-slate-100 flex flex-col items-center">
-          <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-200 mb-10 overflow-hidden transform -rotate-6">
+          <div className="w-24 h-24 bg-indigo-600 rounded-[2rem] flex items-center justify-center shadow-2xl shadow-indigo-200 mb-4 overflow-hidden transform -rotate-6">
              <img 
               src="/regenerated_image_1777589522590.png" 
               alt="Logo"

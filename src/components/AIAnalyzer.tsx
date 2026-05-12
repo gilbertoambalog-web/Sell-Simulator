@@ -10,26 +10,27 @@ import { analyzePortfolioMap } from '../services/geminiService';
 
 interface AIAnalyzerProps {
   onClose: () => void;
+  clients?: any[];
 }
 
-export default function AIAnalyzer({ onClose }: AIAnalyzerProps) {
+export default function AIAnalyzer({ onClose, clients = [] }: AIAnalyzerProps) {
   const [content, setContent] = useState('');
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [stage, setStage] = useState<'initial' | 'analyzing' | 'results'>('initial');
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = async () => {
-    if (!content.trim()) return;
-    
-    setIsAnalyzing(true);
+  const handleAnalyze = async (isFollowUp: boolean = false) => {
+    setStage('analyzing');
     setError(null);
     try {
-      const data = await analyzePortfolioMap(content);
+      const data = await analyzePortfolioMap(isFollowUp ? content : '', clients);
       setResults(data);
-    } catch (e) {
-      setError("No se pudo procesar la información. Intenta con un formato más claro.");
-    } finally {
-      setIsAnalyzing(false);
+      if (isFollowUp) setContent('');
+      setStage('results');
+    } catch (e: any) {
+      console.error(e);
+      setError(e.message || "No se pudo procesar la información. Intenta nuevamente.");
+      setStage(results ? 'results' : 'initial');
     }
   };
 
@@ -47,65 +48,70 @@ export default function AIAnalyzer({ onClose }: AIAnalyzerProps) {
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="relative bg-white w-full max-w-lg rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden max-h-[85vh]"
+        className="relative bg-white w-full max-w-[340px] h-[580px] rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden"
       >
-        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-              <BrainCircuit className="w-6 h-6" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200 shrink-0">
+              <BrainCircuit className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-black text-slate-900 tracking-tight">Estrategia IA</h2>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Análisis de Ruta</p>
+              <h2 className="text-base font-black text-slate-900 tracking-tight leading-none mb-1">Estado Ruta</h2>
+              <p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none">Análisis IA</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 bg-white rounded-full border border-slate-100 shadow-sm text-slate-400">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="p-2 bg-white rounded-full border border-slate-100 shadow-sm text-slate-400 shrink-0">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6 overflow-y-auto flex-1">
-          {!results ? (
-            <div className="space-y-6">
-              <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl">
-                <p className="text-xs text-indigo-700 leading-relaxed font-medium">
-                  Pega el texto de un **Análisis de Ruta** o describe los productos activos en tus puntos de venta para recibir una estrategia de crecimiento.
-                </p>
-              </div>
-
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="Ejemplo: Cliente 437230 tiene activos: Vinos San Telmo, Alma Mora. Falta: Dadá, Spirits..."
-                className="w-full h-40 bg-slate-50 border border-slate-100 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-sans italic resize-none"
-              />
-
-              {error && (
-                <div className="flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">
-                  <AlertCircle className="w-4 h-4" />
-                  <p className="text-[11px] font-bold uppercase">{error}</p>
-                </div>
-              )}
-
-              <button 
-                onClick={handleAnalyze}
-                disabled={isAnalyzing || !content}
-                className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 disabled:opacity-50 transition-all active:scale-95 text-xs uppercase tracking-widest"
-              >
-                {isAnalyzing ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Procesando...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    Generar Estrategia
-                  </>
-                )}
-              </button>
+        <div className="p-5 overflow-y-auto flex-1 custom-scrollbar">
+          {error && (
+            <div className="mb-4 flex items-center gap-2 text-red-500 bg-red-50 p-3 rounded-xl border border-red-100">
+              <AlertCircle className="w-4 h-4" />
+              <p className="text-[11px] font-bold uppercase">{error}</p>
             </div>
-          ) : (
+          )}
+
+          {stage === 'initial' && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6 text-center py-6"
+            >
+              <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Sparkles className="w-10 h-10 text-indigo-500" />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight">¿Quieres análisis de ruta?</h3>
+              <p className="text-sm text-slate-500">
+                La IA evaluará los puntos de venta y priorizará los PDV que son PLAN con mayor CNC.
+              </p>
+              
+              <div className="flex gap-4 pt-4">
+                <button 
+                  onClick={onClose}
+                  className="flex-1 py-4 bg-slate-100 text-slate-500 font-black rounded-2xl text-xs uppercase tracking-widest hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  No
+                </button>
+                <button 
+                  onClick={() => handleAnalyze(false)}
+                  className="flex-1 py-4 bg-indigo-600 text-white font-black rounded-2xl shadow-xl shadow-indigo-200 text-xs uppercase tracking-widest hover:bg-indigo-700 transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  Sí
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {stage === 'analyzing' && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4">
+              <RefreshCw className="w-10 h-10 text-indigo-500 animate-spin" />
+              <p className="text-sm font-bold text-slate-400 uppercase tracking-widest animate-pulse">Procesando datos...</p>
+            </div>
+          )}
+
+          {stage === 'results' && results && (
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -114,47 +120,32 @@ export default function AIAnalyzer({ onClose }: AIAnalyzerProps) {
               <div>
                 <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <span className="w-4 h-px bg-slate-200" />
-                  Resumen Ejecutivo
+                  Respuesta de IA
                 </h3>
-                <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-2xl">
-                  <p className="text-sm text-emerald-900 leading-relaxed italic font-medium">
-                    "{results.summary}"
-                  </p>
+                <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl whitespace-pre-wrap text-sm text-slate-700 leading-relaxed font-medium">
+                  {results.response}
                 </div>
               </div>
 
-              <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Insights Clave</h3>
-                <div className="space-y-2">
-                  {results.topInsights.map((insight: string, i: number) => (
-                    <div key={i} className="flex gap-3 items-start bg-slate-50 p-3 rounded-xl border border-slate-100">
-                      <div className="w-5 h-5 rounded-full bg-white flex items-center justify-center shadow-sm shrink-0">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-indigo-500" />
-                      </div>
-                      <p className="text-[11px] text-slate-600 font-medium leading-normal">{insight}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="pt-4 border-t border-slate-100 space-y-4">
+                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                  Otras consultas
+                </h3>
+                <textarea
+                  value={content}
+                  onChange={(e) => setContent(e.target.value)}
+                  placeholder="Por ejemplo: ¿Qué PDV tienen en CNC Alma Mora Reserva?"
+                  className="w-full h-24 bg-white border border-slate-200 rounded-2xl p-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition-all font-sans resize-none shadow-sm"
+                />
+                <button 
+                  onClick={() => handleAnalyze(true)}
+                  disabled={!content.trim()}
+                  className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl shadow-xl shadow-slate-200 flex items-center justify-center gap-3 disabled:opacity-50 transition-all active:scale-95 text-xs uppercase tracking-widest"
+                >
+                  <Send className="w-4 h-4" />
+                  Preguntar
+                </button>
               </div>
-
-              <div>
-                <h3 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Recomendaciones</h3>
-                <div className="space-y-2">
-                  {results.recommendations.map((rec: string, i: number) => (
-                    <div key={i} className="flex gap-3 items-start bg-indigo-50/50 p-3 rounded-xl border border-indigo-100/50">
-                      <ChevronRight className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-slate-700 font-bold leading-normal">{rec}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button 
-                onClick={() => setResults(null)}
-                className="w-full py-4 border border-slate-100 text-slate-400 font-black rounded-2xl text-[10px] uppercase tracking-widest hover:bg-slate-50 transition-all"
-              >
-                Analizar Otro Mapa
-              </button>
             </motion.div>
           )}
         </div>

@@ -3,6 +3,26 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+export interface PromoTier {
+  minQty: number;
+  discount: number;
+}
+
+export interface PromoRule {
+  id: string;
+  description: string;
+  targetProductIds: string[];
+  tiers: PromoTier[];
+  isMixAndMatch: boolean;
+}
+
+export interface ProductPromoInfo {
+  autoDiscount: number;
+  maxDiscount: number;
+  message: string;
+  tiers: PromoTier[];
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -25,6 +45,7 @@ export interface Order {
   items: OrderItem[];
   total: number;
   createdAt: string;
+  billingType?: 'FACTURA_A' | 'REMITO';
 }
 
 export enum PDVStatus {

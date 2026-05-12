@@ -9,7 +9,7 @@
  */
 
 import React from 'react';
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -17,14 +17,15 @@ import {
   Filter,
   TrendingDown,
   Sparkles,
-  AlertTriangle
+  AlertTriangle,
+  Copy
 } from 'lucide-react';
-import { PDV, PDVStatus, Order } from './types';
+import { PDV, PDVStatus, Order, PromoRule } from './types';
 import Sidebar from './components/Sidebar';
-import MobileNav from './components/MobileNav';
 import DashboardHeader from './components/DashboardHeader';
 import PDVCard from './components/PDVCard';
 import InvoiceModal from './components/InvoiceModal';
+import BillingTypeModal from './components/BillingTypeModal';
 import AIAnalyzer from './components/AIAnalyzer';
 import Login from './components/Login';
 import RouteImportModal from './components/RouteImportModal';
@@ -33,6 +34,9 @@ import RutaModal from './components/RutaModal';
 import LogoutConfirmModal from './components/LogoutConfirmModal';
 import ResetConfirmModal from './components/ResetConfirmModal';
 import ArticlesModal from './components/ArticlesModal';
+import SettingsModal from './components/SettingsModal';
+import PriceListUploadModal from './components/PriceListUploadModal';
+import PromotionsUploadModal from './components/PromotionsUploadModal';
 
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signOut, User as FirebaseUser } from 'firebase/auth';
@@ -82,6 +86,8 @@ export default function App() {
   const [clients, setClients] = useState<PDV[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [quiebresText, setQuiebresText] = useState('');
+  const [customPrices, setCustomPrices] = useState<Record<string, number>>({});
+  const [customPromos, setCustomPromos] = useState<PromoRule[]>([]);
 
   // Local UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -96,6 +102,37 @@ export default function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showArticles, setShowArticles] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [showPriceListUpload, setShowPriceListUpload] = useState(false);
+  const [showPromosUpload, setShowPromosUpload] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showBillingTypeModal, setShowBillingTypeModal] = useState(false);
+  const [pendingInvoiceConfig, setPendingInvoiceConfig] = useState<{client: PDV, viewOnly: boolean} | null>(null);
+  const [currentBillingType, setCurrentBillingType] = useState<'FACTURA_A' | 'REMITO' | null>(null);
+
+  const handleInvoiceClick = (c: PDV, viewOnly?: boolean) => {
+    if (viewOnly) {
+      const existingOrder = orders.find(o => o.pdvId === c.id);
+      setSelectedPDV(c);
+      setInvoiceViewOnly(true);
+      setCurrentBillingType(existingOrder?.billingType || 'FACTURA_A');
+      setShowInvoice(true);
+    } else {
+      setPendingInvoiceConfig({ client: c, viewOnly: false });
+      setShowBillingTypeModal(true);
+    }
+  };
+
+  const handleBillingTypeSelect = (type: 'FACTURA_A' | 'REMITO') => {
+    setCurrentBillingType(type);
+    if (pendingInvoiceConfig) {
+      setSelectedPDV(pendingInvoiceConfig.client);
+      setInvoiceViewOnly(pendingInvoiceConfig.viewOnly);
+      setShowInvoice(true);
+      setShowBillingTypeModal(false);
+      setPendingInvoiceConfig(null);
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -106,7 +143,7 @@ export default function App() {
         setOrders([]);
         setQuiebresText('');
       } else {
-        setVendorId(user.displayName || user.email || 'Vendedor');
+        setVendorId('---'); // Default to ---
       }
       setLoadingAuth(false);
     });
@@ -123,8 +160,14 @@ export default function App() {
         setClients(data.clients || []);
         setOrders(data.orders || []);
         setQuiebresText(data.quiebresText || '');
+        setCustomPrices(data.customPrices || {});
+        setCustomPromos(Array.isArray(data.customPromos) ? data.customPromos : []);
         if (data.vendorId && data.vendorId !== vendorId) {
-          setVendorId(data.vendorId);
+          if (!data.vendorId.includes('@')) {
+            setVendorId(data.vendorId);
+          } else {
+            setVendorId('---');
+          }
         }
       }
     }, (error) => {
@@ -134,15 +177,23 @@ export default function App() {
     return () => unsubscribe();
   }, [firebaseUser]);
 
-  const saveToFirestore = async (overrideClients?: PDV[], overrideOrders?: Order[], overrideQuiebres?: string) => {
+  const stateRef = useRef({ clients, orders, quiebresText, customPrices, customPromos, vendorId });
+  useEffect(() => {
+    stateRef.current = { clients, orders, quiebresText, customPrices, customPromos, vendorId };
+  }, [clients, orders, quiebresText, customPrices, customPromos, vendorId]);
+
+  const saveToFirestore = async (overrideClients?: PDV[], overrideOrders?: Order[], overrideQuiebres?: string, overridePrices?: Record<string, number>, overridePromos?: PromoRule[], overrideVendorId?: string) => {
     if (!firebaseUser) return;
     const path = `users/${firebaseUser.uid}`;
+    const curr = stateRef.current;
     try {
       await setDoc(doc(db, path), {
-        clients: overrideClients !== undefined ? overrideClients : clients,
-        orders: overrideOrders !== undefined ? overrideOrders : orders,
-        quiebresText: overrideQuiebres !== undefined ? overrideQuiebres : quiebresText,
-        vendorId: vendorId || '',
+        clients: overrideClients !== undefined ? overrideClients : curr.clients,
+        orders: overrideOrders !== undefined ? overrideOrders : curr.orders,
+        quiebresText: overrideQuiebres !== undefined ? overrideQuiebres : curr.quiebresText,
+        customPrices: overridePrices !== undefined ? overridePrices : curr.customPrices,
+        customPromos: overridePromos !== undefined ? overridePromos : curr.customPromos,
+        vendorId: overrideVendorId !== undefined ? overrideVendorId : (curr.vendorId || ''),
         updatedAt: Date.now()
       });
     } catch (error) {
@@ -178,13 +229,19 @@ export default function App() {
     setClients([]);
     setOrders([]);
     setQuiebresText('');
-    saveToFirestore([], [], '');
+    setVendorId('---');
+    saveToFirestore([], [], '', undefined, undefined, '---');
     setShowResetConfirm(false);
   };
 
-  const handleImport = (newClients: PDV[]) => {
+  const handleImport = (newClients: PDV[], extractedVendorId?: string) => {
     setClients(newClients);
-    saveToFirestore(newClients, orders, quiebresText);
+    if (extractedVendorId && !extractedVendorId.includes('@')) {
+      setVendorId(extractedVendorId);
+      saveToFirestore(newClients, orders, quiebresText, undefined, undefined, extractedVendorId);
+    } else {
+      saveToFirestore(newClients, orders, quiebresText);
+    }
     setShowImport(false);
   };
 
@@ -245,114 +302,114 @@ export default function App() {
     return <Login onLogin={setVendorId} />;
   }
 
-  const activeMobileTab = showAI ? 'ia' : showOrders ? 'pedidos' : showRuta ? 'ruta' : showArticles ? 'articulos' : 'inicio';
-
   return (
     <div className="flex h-screen w-full bg-slate-50 text-slate-900 overflow-hidden font-sans selection:bg-indigo-100">
       <Sidebar 
         stats={stats} 
-        vendorId={vendorId} 
+        vendorId={vendorId}
+        userName={firebaseUser?.displayName || firebaseUser?.email || 'Usuario'}
         day={clients[0]?.day}
+        onUpdateVendorId={(id) => {
+          setVendorId(id);
+          saveToFirestore(undefined, undefined, undefined, undefined, undefined, id);
+        }}
         onLogout={() => setShowLogoutConfirm(true)} 
         onOpenAI={() => setShowAI(true)} 
         onOpenOrders={() => setShowOrders(true)}
         onOpenRuta={() => setShowRuta(true)}
         onOpenArticles={() => setShowArticles(true)}
-      />
-      <MobileNav 
-        onOpenAI={() => setShowAI(true)}
-        onOpenOrders={() => setShowOrders(true)}
-        onOpenRuta={() => setShowRuta(true)}
-        onOpenArticles={() => setShowArticles(true)}
-        activeTab={activeMobileTab as any}
-        setActiveTab={(tab) => {
-          if (tab === 'inicio') {
-            setShowAI(false);
-            setShowOrders(false);
-            setShowRuta(false);
-            setShowArticles(false);
-          }
-        }}
+        onOpenSettings={() => setShowSettings(true)}
+        onGoHome={() => setShowMobileMenu(false)}
+        isOpen={showMobileMenu}
+        onClose={() => setShowMobileMenu(false)}
       />
 
-      <main className="flex-1 flex flex-col min-w-0 pb-16 lg:pb-0">
+      <main className="flex-1 flex flex-col min-w-0 pb-safe lg:pb-0">
         <DashboardHeader 
           stats={stats} 
           onReset={handleLogout}
-          onImportRuta={() => setShowImport(true)}
-          onLimpiarRuta={() => setShowResetConfirm(true)}
+          onOpenMenu={() => setShowMobileMenu(true)}
         />
 
-        <div className="flex-1 p-3 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 overflow-hidden">
+        <div className="flex-1 p-2 md:p-6 grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 overflow-hidden">
           {/* List of Clients/PDVs */}
           <section className="md:col-span-5 lg:col-span-4 flex flex-col overflow-hidden relative">
             <div className="flex-1 overflow-y-auto pr-2 pb-6 custom-scrollbar space-y-4">
               
               {/* Mobile Dashboard Elements */}
-              <div className="flex md:hidden flex-col gap-3 shrink-0 pt-2">
-                <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
-                    <h2 className="text-[10px] font-black text-slate-800 uppercase tracking-tighter mb-3">Estado de Ruta</h2>
-                    <div className="grid grid-cols-3 gap-2">
-                      <div className="bg-slate-50 rounded-xl p-2 flex flex-col items-center justify-center">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1 text-center">Total<br/>PDV</span>
-                        <span className="text-base font-black text-slate-800 leading-none">{stats.total}</span>
+              <div className="flex md:hidden flex-col gap-2 shrink-0 pt-1 pb-1">
+                <div className="bg-white border border-slate-200 rounded-xl py-1.5 px-2 shadow-sm flex items-center justify-between gap-2">
+                    <h2 className="text-[8px] font-black text-slate-400 uppercase tracking-tighter leading-none shrink-0 border-r border-slate-100 pr-2 py-0.5">Estado<br/>Ruta</h2>
+                    <div className="flex-1 flex justify-between items-center px-1">
+                      <div className="flex gap-1 items-baseline">
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-widest">PDV</span>
+                        <span className="text-sm font-black text-slate-800 leading-none">{stats.total}</span>
                       </div>
-                      <div className="bg-indigo-50 rounded-xl p-2 flex flex-col items-center justify-center">
-                        <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest leading-none mb-1">Planes</span>
-                        <span className="text-base font-black text-indigo-600 leading-none">{stats.conPlan}</span>
+                      <div className="flex gap-1 items-baseline">
+                        <span className="text-[8px] font-bold text-indigo-400 uppercase tracking-widest">Planes</span>
+                        <span className="text-sm font-black text-indigo-600 leading-none">{stats.conPlan}</span>
                       </div>
-                      <div className="bg-amber-50 rounded-xl p-2 flex flex-col items-center justify-center">
-                        <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest leading-none mb-1">CNC</span>
-                        <span className="text-base font-black text-amber-600 leading-none">{stats.noCompro}</span>
+                      <div className="flex gap-1 items-baseline">
+                        <span className="text-[8px] font-bold text-amber-400 uppercase tracking-widest">CNC</span>
+                        <span className="text-sm font-black text-amber-600 leading-none">{stats.noCompro}</span>
                       </div>
                     </div>
                 </div>
 
-                <div className="bg-slate-900 rounded-3xl p-4 shadow-lg relative overflow-hidden flex flex-col justify-center">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
-                    <div className="flex justify-between items-center mb-1 relative z-10">
-                      <h2 className="text-[10px] font-black uppercase tracking-tighter text-indigo-400">Monto Total</h2>
-                      <span className="text-[9px] font-black text-slate-500 tracking-[0.2em] uppercase">
+                <div className="bg-slate-900 rounded-xl py-1.5 px-2 pl-3 shadow-lg relative overflow-hidden flex items-center justify-between gap-2">
+                    <div className="absolute top-0 right-0 w-24 h-24 bg-indigo-500/10 blur-2xl rounded-full -mr-12 -mt-12" />
+                    <div className="relative z-10 flex flex-col flex-1">
+                      <h2 className="text-[8px] font-black uppercase tracking-tighter text-indigo-400 leading-none mb-0.5">Monto Total</h2>
+                      <span className="text-[7px] font-black text-slate-500 tracking-[0.2em] uppercase truncate">
                         {orders.length} pedidos
                       </span>
                     </div>
-                    <div className="relative z-10 text-center py-1">
-                      <p className="text-3xl font-black text-white tracking-tighter">
+                    <div className="relative z-10 flex items-center gap-2">
+                      <p className="text-lg font-black text-white tracking-tighter leading-none">
                         ${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString()}
                       </p>
+                      <button 
+                        onClick={() => {
+                          const dateText = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' }).toUpperCase().replace(',', '');
+                          const ordersText = `(${orders.length}) PEDIDOS FACTURADOS`;
+                          const montoText = `MONTO: $${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString('es-AR')}`;
+                          const textToCopy = `${dateText}\n${ordersText}\n${montoText}`;
+                          navigator.clipboard.writeText(textToCopy);
+                        }}
+                        className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-lg transition-colors shrink-0"
+                        title="Copiar resumen"
+                      >
+                        <Copy className="w-3 h-3" />
+                      </button>
                     </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-2 pt-2 md:pt-0">
+              <div className="flex items-center justify-between px-2 pt-1 md:pt-0">
                 <h2 className="text-xs font-black text-slate-400 uppercase tracking-widest">Hoja de Ruta</h2>
               </div>
 
               <div className="sticky top-0 bg-slate-50/95 backdrop-blur-sm z-10 py-1 -mt-1">
                 <div className="relative">
-                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
                     placeholder="Filtrar clientes..."
-                    className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-10 pr-4 text-xs font-medium outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
+                    className="w-full bg-white border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-[11px] font-medium outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm transition-all"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
               </div>
 
-              <div className="space-y-3 pb-2">
+              <div className="space-y-2 pb-2">
                 <AnimatePresence mode="popLayout">
                   {filteredClients.map((client) => (
                     <PDVCard
                       key={client.id}
                       client={client}
                       onStatusChange={handleSetStatus}
-                      onInvoice={(c, viewOnly) => {
-                        setSelectedPDV(c);
-                        setInvoiceViewOnly(!!viewOnly);
-                        setShowInvoice(true);
-                      }}
+                      onInvoice={(c, viewOnly) => handleInvoiceClick(c, viewOnly)}
                     />
                   ))}
                 </AnimatePresence>
@@ -418,7 +475,13 @@ export default function App() {
                           </div>
                           <div className="flex items-center gap-3">
                             {client.plan && (
-                              <span className="text-[9px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-1 rounded-lg">
+                              <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-lg flex items-center gap-1 ${
+                                client.plan === 'GOLD' ? 'bg-amber-100 text-amber-700' : 
+                                client.plan === 'SILVER' ? 'bg-slate-200 text-slate-700' :
+                                client.plan === 'INICIAL' ? 'bg-orange-100 text-orange-700' :
+                                'bg-slate-100 text-slate-500'
+                              }`}>
+                                {client.plan === 'GOLD' ? '🥇' : client.plan === 'SILVER' ? '🥈' : client.plan === 'INICIAL' ? '🥉' : null}
                                 {client.plan}
                               </span>
                             )}
@@ -452,11 +515,26 @@ export default function App() {
                 />
               </div>
 
-              <div className="min-h-48 flex-1 bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-center text-white relative overflow-hidden">
+              <div className="min-h-48 flex-1 bg-slate-900 rounded-[2.5rem] p-8 shadow-2xl flex flex-col justify-center text-white relative overflow-hidden group">
                 <div className="absolute bottom-0 left-0 w-full h-1/2 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
                 <div className="flex justify-between items-center mb-4 relative">
                   <h2 className="text-sm font-black uppercase tracking-tighter text-indigo-400">Monto Total</h2>
-                  <span className="text-[10px] font-black text-slate-500 tracking-[0.2em]">{new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-[10px] font-black text-slate-500 tracking-[0.2em]">{new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }).toUpperCase()}</span>
+                    <button 
+                      onClick={() => {
+                        const dateText = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit' }).toUpperCase().replace(',', '');
+                        const ordersText = `(${orders.length}) PEDIDOS FACTURADOS`;
+                        const montoText = `MONTO: $${orders.reduce((sum, order) => sum + order.total, 0).toLocaleString('es-AR')}`;
+                        const textToCopy = `${dateText}\n${ordersText}\n${montoText}`;
+                        navigator.clipboard.writeText(textToCopy);
+                      }}
+                      className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white rounded-xl transition-colors shrink-0"
+                      title="Copiar resumen"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
                 <div className="flex-1 flex items-center justify-center relative">
                   <div className="text-center">
@@ -474,11 +552,20 @@ export default function App() {
 
       {/* Modals */}
       <AnimatePresence>
+        {showBillingTypeModal && (
+          <BillingTypeModal 
+            onClose={() => setShowBillingTypeModal(false)}
+            onSelect={handleBillingTypeSelect}
+          />
+        )}
         {showInvoice && selectedPDV && (
           <InvoiceModal
             client={selectedPDV}
             initialOrder={invoiceViewOnly || editingOrderId ? orders.find(o => o.pdvId === selectedPDV.id) : undefined}
             viewOnly={invoiceViewOnly}
+            billingType={currentBillingType || undefined}
+            customPrices={customPrices}
+            customPromos={customPromos}
             onClose={() => {
               setShowInvoice(false);
               setEditingOrderId(null);
@@ -490,6 +577,7 @@ export default function App() {
                   ...o,
                   items: orderData.items,
                   total: orderData.total,
+                  billingType: currentBillingType || 'FACTURA_A',
                   createdAt: new Date().toISOString()
                 } : o);
                 setOrders(nextOrders);
@@ -500,6 +588,7 @@ export default function App() {
                   pdvId: selectedPDV.id,
                   items: orderData.items,
                   total: orderData.total,
+                  billingType: currentBillingType || 'FACTURA_A',
                   createdAt: new Date().toISOString()
                 };
                 nextOrders = [newOrder, ...orders];
@@ -507,13 +596,41 @@ export default function App() {
               }
               const newClients = clients.map(c => c.id === selectedPDV.id ? { ...c, status: PDVStatus.SOLD } : c);
               setClients(newClients);
-              saveToFirestore(newClients, nextOrders, quiebresText);
+              saveToFirestore(newClients, nextOrders, quiebresText, customPrices);
               setShowInvoice(false);
             }}
           />
         )}
+        {showSettings && (
+          <SettingsModal 
+            onClose={() => setShowSettings(false)} 
+            onImportRuta={() => setShowImport(true)}
+            onLimpiarRuta={() => setShowResetConfirm(true)}
+            onSubirPrecios={() => setShowPriceListUpload(true)}
+            onSubirPromociones={() => setShowPromosUpload(true)}
+          />
+        )}
+        {showPriceListUpload && (
+          <PriceListUploadModal 
+            onClose={() => setShowPriceListUpload(false)}
+            onPricesUpdated={(newPrices) => {
+              const updatedPrices = { ...customPrices, ...newPrices };
+              setCustomPrices(updatedPrices);
+              saveToFirestore(clients, orders, quiebresText, updatedPrices, customPromos);
+            }}
+          />
+        )}
+        {showPromosUpload && (
+          <PromotionsUploadModal 
+            onClose={() => setShowPromosUpload(false)}
+            onPromosUpdated={(newPromos: PromoRule[]) => {
+              setCustomPromos(newPromos);
+              saveToFirestore(clients, orders, quiebresText, customPrices, newPromos);
+            }}
+          />
+        )}
         {showAI && (
-          <AIAnalyzer onClose={() => setShowAI(false)} />
+          <AIAnalyzer onClose={() => setShowAI(false)} clients={clients} />
         )}
         {showImport && (
           <RouteImportModal 
@@ -532,6 +649,7 @@ export default function App() {
                 setSelectedPDV(pdv);
                 setEditingOrderId(order.id);
                 setInvoiceViewOnly(false);
+                setCurrentBillingType(order.billingType || 'FACTURA_A');
                 setShowInvoice(true);
                 setShowOrders(false);
               }
@@ -550,11 +668,7 @@ export default function App() {
             clients={clients}
             onClose={() => setShowRuta(false)}
             onStatusChange={handleSetStatus}
-            onInvoice={(c, viewOnly) => {
-              setSelectedPDV(c);
-              setInvoiceViewOnly(!!viewOnly);
-              setShowInvoice(true);
-            }}
+            onInvoice={(c, viewOnly) => handleInvoiceClick(c, viewOnly)}
           />
         )}
         {showLogoutConfirm && (

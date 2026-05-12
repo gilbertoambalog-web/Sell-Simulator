@@ -63,59 +63,37 @@ export default function OrdersModal({ orders, clients, onClose, onEditOrder, onD
           ) : (
             orders.map(order => (
               <div key={order.id} className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm hover:shadow-md transition-shadow relative overflow-hidden">
-                <div className="flex justify-between items-end mb-4 border-b border-slate-50 pb-4">
-                  <div>
-                    <h3 className="font-bold text-sm text-indigo-600 uppercase mb-1">{getClientAddress(order.pdvId)}</h3>
-                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                      <Calendar className="w-3 h-3" />
-                      {new Date(order.createdAt).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-bold text-sm text-indigo-600 uppercase mb-1 leading-tight sm:truncate" title={getClientAddress(order.pdvId)}>{getClientAddress(order.pdvId)}</h3>
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 shrink-0" />
+                        <span className="whitespace-nowrap">{new Date(order.createdAt).toLocaleString('es-AR', { hour: '2-digit', minute: '2-digit' })} hs</span>
+                      </div>
+                      <span className="text-slate-300 hidden sm:inline">|</span>
+                      <span className="whitespace-nowrap bg-slate-50 px-1.5 py-0.5 rounded-md border border-slate-100">{order.items.reduce((s, i) => s + i.quantity, 0)} bultos</span>
                     </div>
                   </div>
-                  <div className="text-right flex flex-col items-end gap-2">
-                    <div className="flex items-center gap-2 mb-2">
+                  <div className="flex items-center justify-between sm:justify-end gap-3 w-full sm:w-auto shrink-0 border-t border-slate-50 pt-3 sm:border-0 sm:pt-0">
+                    <p className="text-lg sm:text-xl font-black text-slate-800 shrink-0">${Math.round(order.total).toLocaleString()}</p>
+                    <div className="flex items-center gap-2 shrink-0">
                       <button 
                         onClick={() => onEditOrder(order)}
-                        className="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
-                        title="Editar pedido"
+                        className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
+                        title="Ver / Editar pedido"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => setDeleteConfirmId(order.id)}
-                        className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors"
+                        className="p-2.5 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors"
                         title="Eliminar pedido"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <div>
-                      <p className="text-lg font-black text-slate-800">${Math.round(order.total).toLocaleString()}</p>
-                      <p className="text-xs text-slate-400 font-medium text-right">{order.items.reduce((s, i) => s + i.quantity, 0)} bultos</p>
-                    </div>
                   </div>
-                </div>
-
-                <div className="space-y-2">
-                  {order.items.filter(i => i.quantity > 0).map((item, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-xs">
-                      <span className="font-medium text-slate-600">
-                        {item.quantity}x {item.name}
-                        {item.discount > 0 && (
-                          <span className="ml-2 text-[9px] font-bold text-emerald-500 bg-emerald-50 px-1.5 py-0.5 rounded-md uppercase">
-                            -{item.discount}%
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-bold text-slate-400">
-                        ${Math.round(item.quantity * item.price * (1 - item.discount / 100)).toLocaleString()}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total del Pedido</span>
-                  <span className="text-sm font-black text-indigo-600">${Math.round(order.total).toLocaleString()}</span>
                 </div>
 
                 <AnimatePresence>

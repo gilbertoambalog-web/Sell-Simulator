@@ -1,29 +1,54 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Product, OrderItem } from '../types';
+import { Product, OrderItem, ProductPromoInfo } from '../types';
 
 interface ProductRowProps {
   product: Product;
   item?: OrderItem;
+  promoInfo?: ProductPromoInfo;
   updateQty: (id: string, name: string, price: number, delta: number) => void;
   updateDiscount: (id: string, discount: number) => void;
 }
 
-const ProductRow: React.FC<ProductRowProps> = ({ product: p, item, updateQty, updateDiscount }) => {
+const getDiscountBgClass = (discount: number) => {
+  if (discount >= 15) return "bg-purple-500 text-white";
+  if (discount >= 10) return "bg-red-500 text-white";
+  if (discount >= 7) return "bg-yellow-400 text-slate-900";
+  if (discount >= 4) return "bg-emerald-500 text-white";
+  if (discount >= 1) return "bg-blue-500 text-white";
+  return "bg-slate-200 text-slate-500";
+};
+
+const getDiscountBorderClass = (discount: number) => {
+  if (discount >= 15) return "border-purple-500 text-purple-600";
+  if (discount >= 10) return "border-red-500 text-red-600";
+  if (discount >= 7) return "border-yellow-500 text-yellow-700";
+  if (discount >= 4) return "border-emerald-500 text-emerald-600";
+  if (discount >= 1) return "border-blue-500 text-blue-600";
+  return "border-slate-200 text-slate-400";
+};
+
+const ProductRow: React.FC<ProductRowProps> = ({ product: p, item, promoInfo, updateQty, updateDiscount }) => {
   const quantity = item?.quantity || 0;
   const hasQty = quantity > 0;
   
   const [localQty, setLocalQty] = useState<string>(quantity.toString());
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     if (parseInt(localQty || '0', 10) !== quantity) {
       setLocalQty(quantity.toString());
+    }
+    if (quantity === 0) {
+      setIsExpanded(false);
     }
   }, [quantity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleQtyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/\D/g, ''); // Only allow digits
     setLocalQty(val);
+    if (!isExpanded) setIsExpanded(true);
+    
     if (val === '') {
       updateQty(p.id, p.name, p.price, -quantity);
     } else {
@@ -61,39 +86,57 @@ const ProductRow: React.FC<ProductRowProps> = ({ product: p, item, updateQty, up
     }
     setTempDiscount(null);
     setIsCustom(false);
+    setIsExpanded(false);
   };
 
   const handleCancel = () => {
     setTempDiscount(null);
     setIsCustom(false);
     setCustomVal('');
-    // Optionally we can reset the discount to 0 or leave it as it was
-    // updateDiscount(p.id, 0); 
+    setIsExpanded(false);
   };
   
-  // if tempDiscount or isCustom are not set, reflect current item.discount
   const currentDisplayedValue = item?.discount || 0;
 
+  const boxes = Math.floor(quantity / 6);
+  const singles = quantity % 6;
+  let qtyText = '';
+  if (boxes > 0) qtyText += `${boxes} Caja(s)`;
+  if (singles > 0) {
+    if (qtyText) qtyText += ` y `;
+    qtyText += `${singles} Und(s)`;
+  }
+
   return (
-    <div className={`p-4 rounded-3xl border transition-all ${
-      hasQty ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' : 'bg-white border-slate-100'
+    <div className={`p-3 rounded-2xl border transition-all ${
+      hasQty ? (isExpanded ? 'bg-indigo-50/50 border-indigo-200 shadow-sm' : 'bg-emerald-50 border-emerald-200 shadow-sm') : 'bg-white border-slate-100'
     }`}>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <p className="font-bold text-slate-800 text-[13px]">{p.name}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex-1 cursor-pointer" onClick={() => hasQty && setIsExpanded(!isExpanded)}>
+          <p className={`font-bold text-xs leading-tight ${hasQty && !isExpanded ? 'text-emerald-900' : 'text-slate-800'}`}>{p.name}</p>
           <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-[11px] text-slate-400 font-medium">${p.price.toLocaleString()}</p>
+            <p className={`text-[10px] font-medium ${hasQty && !isExpanded ? 'text-emerald-700/70' : 'text-slate-400'}`}>${p.price.toLocaleString()}</p>
             {item?.discount ? (
-              <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-500 text-white uppercase">
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase ${getDiscountBgClass(item.discount)}`}>
                 -{item.discount}%
               </span>
             ) : null}
+            {!isExpanded && hasQty && (
+               <span className="text-[9px] font-bold text-emerald-700 ml-2">
+                 • {qtyText}
+               </span>
+            )}
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-white p-1 rounded-full border border-slate-100 shadow-inner">
+        <div className="flex items-center gap-2 bg-white p-1 rounded-full border border-slate-100 shadow-inner" onClick={(e) => e.stopPropagation()}>
           <button 
-            onClick={() => updateQty(p.id, p.name, p.price, -1)}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+            onClick={() => {
+              if (!isExpanded && quantity === 0) setIsExpanded(true);
+              else if (!isExpanded && quantity === 1) setIsExpanded(true);
+              else if (!isExpanded) setIsExpanded(true);
+              updateQty(p.id, p.name, p.price, -1);
+            }}
+            className="w-7 h-7 rounded-full flex items-center justify-center text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors text-lg"
           >
             -
           </button>
@@ -101,12 +144,16 @@ const ProductRow: React.FC<ProductRowProps> = ({ product: p, item, updateQty, up
             type="text"
             inputMode="numeric"
             value={localQty}
+            onClick={() => { if(!isExpanded) setIsExpanded(true); }}
             onChange={handleQtyChange}
-            className="w-10 text-center font-black text-sm bg-transparent outline-none"
+            className="w-8 text-center font-black text-[13px] bg-transparent outline-none"
           />
           <button 
-            onClick={() => updateQty(p.id, p.name, p.price, 1)}
-            className="w-8 h-8 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800 transition-colors"
+            onClick={() => {
+               if (!isExpanded) setIsExpanded(true);
+               updateQty(p.id, p.name, p.price, 1);
+            }}
+            className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-800 transition-colors text-lg text-center pb-0.5"
           >
             +
           </button>
@@ -114,40 +161,71 @@ const ProductRow: React.FC<ProductRowProps> = ({ product: p, item, updateQty, up
       </div>
       
       <AnimatePresence>
-        {hasQty && (
+        {isExpanded && hasQty && (
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
+            {promoInfo && promoInfo.message && (
+              <div className="mt-2 flex items-center px-3 py-2 bg-indigo-50 border border-indigo-100/50 rounded-xl">
+                <p className="text-[10px] font-bold text-indigo-600 leading-snug break-words">
+                  {promoInfo.message}
+                </p>
+              </div>
+            )}
             <div className="flex gap-2 mt-4 pt-4 border-t border-slate-100 flex-wrap">
-              {[2, 4, 6].map(d => {
-                const isActive = (!isCustom && tempDiscount === d) || (tempDiscount === null && !isCustom && item?.discount === d);
+              {(() => {
+                let buttons: number[] = [];
+                if (promoInfo && promoInfo.tiers && promoInfo.tiers.length > 0) {
+                  const uniqueDiscounts = Array.from(new Set<number>(promoInfo.tiers.map(t => t.discount)));
+                  buttons = uniqueDiscounts.sort((a, b) => a - b);
+                } else if (promoInfo && promoInfo.maxDiscount > 0) {
+                  const maxDiscount = promoInfo.maxDiscount;
+                  const generatedDiscounts = Array.from(new Set<number>([
+                      Math.max(1, Math.round(maxDiscount / 3)),
+                      Math.max(2, Math.round(maxDiscount * 2 / 3)),
+                      maxDiscount
+                    ]));
+                  buttons = generatedDiscounts.sort((a, b) => a - b);
+                } else {
+                  buttons = [2, 4, 6];
+                }
+
                 return (
-                  <button 
-                    key={d}
-                    onClick={() => handleDiscountSelect(d)}
-                    className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
-                      isActive
-                        ? 'bg-indigo-600 border-indigo-600 text-white' 
-                        : 'bg-white border-slate-200 text-slate-400 hover:border-indigo-300 hover:text-indigo-600'
-                    }`}
-                  >
-                    {d}% Off
-                  </button>
+                  <>
+                    {buttons.map(d => {
+                      const isActive = (!isCustom && tempDiscount === d) || (tempDiscount === null && !isCustom && item?.discount === d);
+                      const baseClass = isActive 
+                            ? getDiscountBgClass(d) + " border-transparent"
+                            : "bg-white " + getDiscountBorderClass(d);
+                      
+                      return (
+                        <button 
+                          key={d}
+                          onClick={() => handleDiscountSelect(d)}
+                          className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all hover:brightness-95 ${baseClass}`}
+                        >
+                          {d}% Off
+                        </button>
+                      );
+                    })}
+                    <div className="flex-none basis-full flex gap-2 mt-1">
+                      <button
+                        onClick={handleCustomSelect}
+                        className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                          isCustom || (tempDiscount === null && !isCustom && item?.discount && !(buttons.includes(item.discount)))
+                            ? 'bg-slate-800 border-slate-800 text-white'
+                            : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600'
+                        }`}
+                      >
+                        Otro
+                      </button>
+                    </div>
+                  </>
                 );
-              })}
-              <button
-                onClick={handleCustomSelect}
-                className={`flex-1 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
-                  isCustom || (tempDiscount === null && !isCustom && item?.discount && ![2,4,6].includes(item.discount))
-                    ? 'bg-slate-800 border-slate-800 text-white'
-                    : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600'
-                }`}
-              >
-                Otro
-              </button>
+              })()}
             </div>
             
             {isCustom && (

@@ -4,22 +4,29 @@
  */
 
 import React from 'react';
-import { TrendingUp, Target, Percent, Trash2 } from 'lucide-react';
+import { TrendingUp, Target, Percent, Trash2, Menu } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface DashboardHeaderProps {
   stats: { sold: number; visited: number; total: number };
   onReset: () => void;
-  onImportRuta: () => void;
-  onLimpiarRuta: () => void;
+  onOpenMenu?: () => void;
 }
 
-export default function DashboardHeader({ stats, onReset, onImportRuta, onLimpiarRuta }: DashboardHeaderProps) {
+export default function DashboardHeader({ stats, onReset, onOpenMenu }: DashboardHeaderProps) {
   const effectiveness = stats.visited > 0 ? Math.round((stats.sold / stats.visited) * 100) : 0;
 
   return (
-    <header className="h-auto md:h-24 bg-white border-b border-slate-200 px-4 py-4 md:px-8 flex flex-col md:flex-row items-center justify-between shadow-sm shrink-0 sticky top-0 z-40 gap-4">
-      <div className="flex gap-4 md:gap-12 w-full md:w-auto justify-between md:justify-start">
+    <header className="h-auto md:h-24 bg-white border-b border-slate-200 px-2 py-1.5 md:px-8 md:py-0 flex flex-col md:flex-row items-center justify-between shadow-sm shrink-0 sticky top-0 z-40 gap-1 md:gap-4">
+      <div className="flex gap-2 md:gap-12 w-full md:w-auto justify-between md:justify-start items-center">
+        {onOpenMenu && (
+          <button 
+            onClick={onOpenMenu}
+            className="lg:hidden p-2 -ml-1 bg-indigo-600 text-white rounded-xl shadow-md shadow-indigo-200 hover:bg-indigo-700 active:scale-95 transition-all"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
+        )}
         <KPI 
           label="Pedidos" 
           value={stats.sold} 
@@ -39,22 +46,6 @@ export default function DashboardHeader({ stats, onReset, onImportRuta, onLimpia
           icon={<Percent className="w-4 h-4 text-slate-400" />}
           subValue="De la ruta"
         />
-      </div>
-
-      <div className="flex gap-3 w-full md:w-auto justify-end">
-        <button 
-          onClick={onLimpiarRuta}
-          className="flex-1 md:flex-none px-4 md:px-5 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-100 transition-all flex items-center justify-center gap-2"
-        >
-          <Trash2 size={16} />
-          <span className="hidden sm:inline">Limpiar</span>
-        </button>
-        <button 
-          onClick={onImportRuta}
-          className="flex-1 md:flex-none px-4 md:px-5 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-black uppercase tracking-widest shadow-lg shadow-slate-200 hover:bg-slate-800 transition-all flex items-center justify-center gap-2"
-        >
-          Importar<span className="hidden sm:inline"> Ruta</span>
-        </button>
       </div>
     </header>
   );
