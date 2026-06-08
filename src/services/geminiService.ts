@@ -8,7 +8,7 @@ import * as XLSX from 'xlsx';
 import { CATEGORIES } from '../constants';
 import { PromoRule } from '../types';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 
 export async function extractPricesFromFile(file: File): Promise<Record<string, number>> {
   let textContent = '';
