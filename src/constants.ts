@@ -102,6 +102,7 @@ export const CATEGORIES = {
     { id: 'v85', name: "Don David Chardonnay", price: 5775 },
     { id: 'v86', name: "Don David Sauvignon Blanc", price: 5775 },
     { id: 'v103', name: "Don David Low Alcohol", price: 5775 },
+    { id: 'v107', name: "Don David Red Blend", price: 5775 },
     { id: 'v87', name: "Fond de Cave Malbec", price: 5608 },
     { id: 'v88', name: "Fond de Cave Cabernet", price: 5608 },
     { id: 'v89', name: "Fond de Cave Syrah", price: 5608 },
@@ -203,6 +204,7 @@ export const CATEGORIES = {
     { id: 's13', name: "Tanqueray Dry", price: 24390 },
     { id: 's14', name: "Tanqueray Sevilla", price: 29283 },
     { id: 's15', name: "Tanqueray Royal", price: 29283 },
+    { id: 's24', name: "Tanqueray Bossa Nova", price: 29283 },
     { id: 's16', name: "Johnnie Walker Red Label 750ml", price: 25440 },
     { id: 's17', name: "Johnnie Walker Red Label 1L", price: 30240 },
     { id: 's18', name: "Johnnie Walker Black Label 750ml", price: 47107 },
@@ -210,7 +212,8 @@ export const CATEGORIES = {
     { id: 's20', name: "Johnnie Walker Double Black", price: 53633 },
     { id: 's21', name: "White Horse", price: 13300 },
     { id: 's22', name: "Baileys", price: 26059 },
-    { id: 's23', name: "Baileys Caramel", price: 27402 }
+    { id: 's23', name: "Baileys Caramel", price: 27402 },
+    { id: 's25', name: "J&B RARE", price: 15000 }
   ]
 };
 
